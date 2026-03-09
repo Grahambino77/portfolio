@@ -1,0 +1,43 @@
+# ── Secrets ────────────────────────────────────────────────
+.env
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# ── Virtual environments ────────────────────────────────────
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# ── Flask / Werkzeug ────────────────────────────────────────
+instance/
+.webassets-cache
+
+# ── OS / Editor ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Node (if you add a build step later) ───────────────────
+node_modules/

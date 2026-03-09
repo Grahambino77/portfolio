@@ -1,0 +1,275 @@
+"""
+app.py — Flask backend for Andrew Graham's Portfolio
+Run (from project root):
+    python backend/app.py
+
+Required packages:
+    pip install flask flask-limiter python-dotenv
+"""
+
+import os
+import re
+import smtplib
+import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text      import MIMEText
+from datetime             import datetime
+
+from flask          import Flask, request, jsonify, send_from_directory
+from flask_limiter  import Limiter
+from flask_limiter.util import get_remote_address
+from dotenv         import load_dotenv
+
+# ---------------------------------------------------------------------------
+# Load environment variables from .env (dev) or system env (production)
+# ---------------------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))   # .../backend
+ROOT_DIR = os.path.dirname(BASE_DIR)                     # .../Resume
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
+
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(ROOT_DIR, "static"),
+    template_folder=ROOT_DIR,
+)
+
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me-in-production")
+
+# ---------------------------------------------------------------------------
+# Rate limiting  (spam protection — layer 1)
+# ---------------------------------------------------------------------------
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],                    # no global limit; set per-route
+    storage_uri="memory://",
+)
+
+# ---------------------------------------------------------------------------
+# Email configuration (loaded from .env)
+# ---------------------------------------------------------------------------
+GMAIL_USER    = os.environ.get("GMAIL_USER", "")          # your Gmail address
+GMAIL_PASS    = os.environ.get("GMAIL_APP_PASS", "")      # Gmail App Password (16-char)
+NOTIFY_EMAIL  = os.environ.get("NOTIFY_EMAIL", GMAIL_USER) # where to forward contact msgs
+
+EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def send_gmail(sender_name: str, sender_email: str, message: str) -> None:
+    """Send a contact notification email via Gmail SMTP (TLS on port 587)."""
+    if not GMAIL_USER or not GMAIL_PASS:
+        raise EnvironmentError("GMAIL_USER or GMAIL_APP_PASS not configured in .env")
+
+    subject = f"Portfolio Contact: {sender_name}"
+
+    html_body = f"""
+    <html><body style="font-family:Arial,sans-serif;color:#333;">
+      <h2 style="color:#e94560;">New Portfolio Contact</h2>
+      <table style="border-collapse:collapse;width:100%;max-width:600px;">
+        <tr>
+          <td style="padding:8px 12px;font-weight:bold;background:#f5f5f5;border:1px solid #ddd;width:120px;">Name</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;">{sender_name}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-weight:bold;background:#f5f5f5;border:1px solid #ddd;">Email</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;"><a href="mailto:{sender_email}">{sender_email}</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-weight:bold;background:#f5f5f5;border:1px solid #ddd;vertical-align:top;">Message</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;white-space:pre-wrap;">{message}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-weight:bold;background:#f5f5f5;border:1px solid #ddd;">Received</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;">{datetime.now().strftime('%B %d, %Y at %I:%M %p')}</td>
+        </tr>
+      </table>
+    </body></html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"Portfolio Contact Form <{GMAIL_USER}>"
+    msg["To"]      = NOTIFY_EMAIL
+    msg["Reply-To"] = f"{sender_name} <{sender_email}>"
+
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASS)
+        server.sendmail(GMAIL_USER, NOTIFY_EMAIL, msg.as_string())
+
+
+# ---------------------------------------------------------------------------
+# Routes — Frontend
+# ---------------------------------------------------------------------------
+
+@app.route("/")
+def index():
+    """Serve the portfolio front page."""
+    return send_from_directory(ROOT_DIR, "index.html")
+
+
+@app.route("/countdown")
+def countdown():
+    """Serve the Countdown Timer web application."""
+    return send_from_directory(
+        os.path.join(ROOT_DIR, "static", "countdown"), "index.html"
+    )
+
+
+@app.route("/launch-desktop")
+def launch_desktop():
+    """
+    Launch the Python/Tkinter desktop countdown app as a detached subprocess.
+    Returns a simple confirmation page — does NOT block the Flask server.
+    """
+    import subprocess, sys
+    script = os.path.join(ROOT_DIR, "backend", "countdown_app.py")
+
+    try:
+        # DETACHED_PROCESS + CREATE_NEW_CONSOLE keeps it independent on Windows
+        DETACHED = 0x00000008
+        subprocess.Popen(
+            [sys.executable, script],
+            creationflags=DETACHED,
+            close_fds=True,
+        )
+        launched = True
+    except Exception as e:
+        logger.error("Failed to launch desktop app: %s", e)
+        launched = False
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Desktop App {'Launched' if launched else 'Error'}</title>
+  <style>
+    body{{font-family:'Segoe UI',sans-serif;background:#0f0f0f;color:#e0e0e0;
+         display:flex;align-items:center;justify-content:center;min-height:100vh;
+         flex-direction:column;gap:16px;text-align:center;padding:20px;}}
+    .icon{{font-size:3rem;}}
+    h2{{color:{'#4caf50' if launched else '#e94560'};font-size:1.6rem;}}
+    p{{color:#a0a0b0;max-width:380px;}}
+    a{{color:#e94560;text-decoration:none;font-weight:600;}}
+    a:hover{{opacity:.8;}}
+  </style>
+</head>
+<body>
+  <div class="icon">{'🖥️' if launched else '❌'}</div>
+  <h2>{'Desktop App Launched!' if launched else 'Launch Failed'}</h2>
+  <p>{'The countdown_app.py Tkinter window should now be open on your desktop.' if launched
+      else 'Could not start countdown_app.py. Make sure Python is installed and the file exists.'}</p>
+  <a href="/">← Back to Portfolio</a>
+</body>
+</html>"""
+    return html, 200 if launched else 500
+
+
+# ---------------------------------------------------------------------------
+# Routes — Contact Form
+# ---------------------------------------------------------------------------
+
+@app.route("/contact", methods=["POST"])
+@limiter.limit("5 per 10 minutes")           # spam protection — layer 2 (rate limit)
+def contact():
+    """
+    POST /contact
+    Body (JSON): { "name", "email", "message", "honeypot" }
+    Returns    : { "message" } on success  (200)
+               : { "error"   } on failure  (400 / 429 / 500)
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid request — expected JSON body."}), 400
+
+    # ── Spam protection layer 3: honeypot field ──────────────────────────────
+    # The hidden <input name="honeypot"> should always be empty for real users.
+    # Bots that auto-fill all fields will populate it and get silently rejected.
+    honeypot = (data.get("honeypot") or "").strip()
+    if honeypot:
+        logger.warning("Honeypot triggered — bot submission rejected.")
+        # Return 200 to avoid giving bots feedback; just silently discard
+        return jsonify({"message": "Thanks for reaching out!"}), 200
+
+    # ── Field extraction ──────────────────────────────────────────────────────
+    name    = (data.get("name")    or "").strip()
+    email   = (data.get("email")   or "").strip()
+    message = (data.get("message") or "").strip()
+
+    # ── Validation ────────────────────────────────────────────────────────────
+    if not name or not email or not message:
+        return jsonify({"error": "All fields (name, email, message) are required."}), 400
+
+    if len(name) > 100:
+        return jsonify({"error": "Name is too long (max 100 characters)."}), 400
+
+    if not EMAIL_REGEX.match(email):
+        return jsonify({"error": "Please enter a valid email address."}), 400
+
+    if len(message) > 5000:
+        return jsonify({"error": "Message is too long (max 5000 characters)."}), 400
+
+    # ── Send email ────────────────────────────────────────────────────────────
+    try:
+        send_gmail(name, email, message)
+        logger.info("Contact email sent. From: %s <%s>", name, email)
+        return jsonify({"message": "Thanks for reaching out! I'll get back to you soon."}), 200
+
+    except EnvironmentError as e:
+        # Email not configured — log and fall back gracefully
+        logger.warning("Email not configured: %s", e)
+        logger.info("[FALLBACK] Contact from %s <%s>: %s", name, email, message)
+        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
+
+    except smtplib.SMTPAuthenticationError:
+        logger.error("Gmail authentication failed — check GMAIL_USER and GMAIL_APP_PASS in .env")
+        return jsonify({"error": "Server email configuration error. Please try again later."}), 500
+
+    except smtplib.SMTPException as e:
+        logger.error("SMTP error: %s", e)
+        return jsonify({"error": "Failed to send message. Please try again later."}), 500
+
+    except Exception as e:
+        logger.error("Unexpected error in /contact: %s", e)
+        return jsonify({"error": "An unexpected error occurred. Please try again."}), 500
+
+
+# ---------------------------------------------------------------------------
+# Custom error handler for rate-limit exceeded (429)
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(429)
+def rate_limit_handler(e):
+    return jsonify({
+        "error": "Too many messages sent. Please wait a few minutes before trying again."
+    }), 429
+
+
+# ---------------------------------------------------------------------------
+# Health-check
+# ---------------------------------------------------------------------------
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "email_configured": bool(GMAIL_USER and GMAIL_PASS)}), 200
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)

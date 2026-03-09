@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Countdown Timer — Andrew Graham</title>
+  <style>
+    /* ── Reset & Variables ──────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0f0f;
+      --surface:  #1a1a2e;
+      --accent:   #e94560;
+      --accent2:  #0f3460;
+      --text:     #e0e0e0;
+      --muted:    #a0a0b0;
+      --white:    #ffffff;
+      --green:    #4caf50;
+      --radius:   10px;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── Back link ─────────────────────────────────────── */
+    .back-link {
+      align-self: flex-start;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-decoration: none;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.25s ease;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── Header ────────────────────────────────────────── */
+    .app-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .app-header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .app-header h1 span { color: var(--accent); }
+    .app-header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* ── Card ──────────────────────────────────────────── */
+    .timer-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    /* ── Input row ─────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .time-field {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .time-field label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+
+    .time-field input {
+      width: 80px;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--white);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius);
+      padding: 10px 6px;
+      outline: none;
+      transition: border-color 0.25s ease;
+      -moz-appearance: textfield;
+    }
+    .time-field input::-webkit-inner-spin-button,
+    .time-field input::-webkit-outer-spin-button { display: none; }
+    .time-field input:focus { border-color: var(--accent); }
+    .time-field input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .colon {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--muted);
+      align-self: flex-end;
+      padding-bottom: 14px;
+    }
+
+    /* ── Display ───────────────────────────────────────── */
+    .timer-display {
+      text-align: center;
+      font-size: clamp(3.5rem, 14vw, 6rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 12px;
+      transition: color 0.4s ease;
+      line-height: 1;
+    }
+    .timer-display.running { color: var(--green); }
+    .timer-display.paused  { color: var(--accent); }
+    .timer-display.done    { color: var(--accent); animation: pulse 0.8s ease infinite alternate; }
+
+    @keyframes pulse {
+      from { opacity: 1; }
+      to   { opacity: 0.4; }
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 32px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, var(--accent2), var(--accent));
+      border-radius: 4px;
+      transition: width 0.5s linear;
+      width: 100%;
+    }
+
+    /* ── Status label ──────────────────────────────────── */
+    .status-label {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      min-height: 1.2em;
+    }
+
+    /* ── Controls ──────────────────────────────────────── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 0.65rem 1.6rem;
+      border-radius: var(--radius);
+      border: 2px solid transparent;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      letter-spacing: 0.5px;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-2px); opacity: 0.88; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .btn-start  { background: var(--green);   color: var(--white); }
+    .btn-pause  { background: var(--accent);  color: var(--white); }
+    .btn-reset  { background: transparent; border-color: rgba(255,255,255,0.2); color: var(--muted); }
+    .btn-reset:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Presets ───────────────────────────────────────── */
+    .presets {
+      margin-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 20px;
+    }
+    .presets-label {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .preset-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .preset-btn {
+      background: rgba(15,52,96,0.5);
+      border: 1px solid rgba(233,69,96,0.2);
+      color: var(--text);
+      font-size: 0.82rem;
+      padding: 5px 14px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .preset-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--white); }
+
+    /* ── Alert overlay ─────────────────────────────────── */
+    .alert-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .alert-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .alert-box {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      padding: 36px 32px;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+    .alert-overlay.show .alert-box { transform: scale(1); }
+    .alert-icon { font-size: 3rem; margin-bottom: 12px; }
+    .alert-box h2 { font-size: 1.5rem; margin-bottom: 8px; color: var(--white); }
+    .alert-box p  { color: var(--muted); margin-bottom: 20px; }
+    .alert-close  { background: var(--accent); color: var(--white); border: none;
+                    padding: 10px 28px; border-radius: 8px; font-weight: 700;
+                    cursor: pointer; font-size: 0.95rem; }
+    .alert-close:hover { opacity: 0.85; }
+
+    /* ── Footer ────────────────────────────────────────── */
+    .app-footer {
+      margin-top: 48px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: rgba(160,160,176,0.5);
+    }
+    .app-footer a { color: var(--accent); text-decoration: none; }
+    .app-footer a:hover { opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+  <a href="/" class="back-link">← Back to Portfolio</a>
+
+  <header class="app-header">
+    <h1>⏱️ Countdown <span>Timer</span></h1>
+    <p>Set hours, minutes &amp; seconds — then start the countdown.</p>
+  </header>
+
+  <div class="timer-card">
+
+    <!-- Input fields -->
+    <div class="input-row">
+      <div class="time-field">
+        <label for="inputHours">Hours</label>
+        <input type="number" id="inputHours" min="0" max="99" value="0" />
+      </div>
+      <div class="colon">:</div>
+      <div class="time-field">
+        <label for="inputMinutes">Minutes</label>
+        <input type="number" id="inputMinutes" min="0" max="59" value="5" />
+      </div>
+      <div class="colon">:</div>
+      <div class="time-field">
+        <label for="inputSeconds">Seconds</label>
+        <input type="number" id="inputSeconds" min="0" max="59" value="0" />
+      </div>
+    </div>
+
+    <!-- Display -->
+    <div class="timer-display" id="timerDisplay">00:05:00</div>
+
+    <!-- Progress bar -->
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-label" id="statusLabel">Ready</div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn btn-start"  id="btnStart">▶ Start</button>
+      <button class="btn btn-pause"  id="btnPause"  disabled>⏸ Pause</button>
+      <button class="btn btn-reset"  id="btnReset">↺ Reset</button>
+    </div>
+
+    <!-- Presets -->
+    <div class="presets">
+      <div class="presets-label">Quick Presets</div>
+      <div class="preset-btns">
+        <button class="preset-btn" data-h="0" data-m="1"  data-s="0">1 min</button>
+        <button class="preset-btn" data-h="0" data-m="5"  data-s="0">5 min</button>
+        <button class="preset-btn" data-h="0" data-m="10" data-s="0">10 min</button>
+        <button class="preset-btn" data-h="0" data-m="15" data-s="0">15 min</button>
+        <button class="preset-btn" data-h="0" data-m="25" data-s="0">25 min</button>
+        <button class="preset-btn" data-h="0" data-m="30" data-s="0">30 min</button>
+        <button class="preset-btn" data-h="1" data-m="0"  data-s="0">1 hr</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done alert -->
+  <div class="alert-overlay" id="alertOverlay">
+    <div class="alert-box">
+      <div class="alert-icon">✅</div>
+      <h2>Time's Up!</h2>
+      <p>Your countdown has finished.</p>
+      <button class="alert-close" id="alertClose">Dismiss</button>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    Built by <a href="/">Andrew Graham</a> · Python (Tkinter) → JavaScript
+  </footer>
+
+  <script>
+    'use strict';
+
+    /* ── DOM refs ──────────────────────────────────────── */
+    const inputH    = document.getElementById('inputHours');
+    const inputM    = document.getElementById('inputMinutes');
+    const inputS    = document.getElementById('inputSeconds');
+    const display   = document.getElementById('timerDisplay');
+    const progress  = document.getElementById('progressBar');
+    const status    = document.getElementById('statusLabel');
+    const btnStart  = document.getElementById('btnStart');
+    const btnPause  = document.getElementById('btnPause');
+    const btnReset  = document.getElementById('btnReset');
+    const overlay   = document.getElementById('alertOverlay');
+    const alertClose = document.getElementById('alertClose');
+
+    /* ── State ─────────────────────────────────────────── */
+    let totalSeconds  = 0;   // original total for progress calculation
+    let remaining     = 0;   // seconds left
+    let timerId       = null;
+    let running       = false;
+
+    /* ── Helpers ───────────────────────────────────────── */
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function toSeconds(h, m, s) {
+      return (parseInt(h, 10) || 0) * 3600
+           + (parseInt(m, 10) || 0) * 60
+           + (parseInt(s, 10) || 0);
+    }
+
+    function formatTime(secs) {
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+
+    function updateDisplay() {
+      display.textContent = formatTime(remaining);
+      const pct = totalSeconds > 0 ? (remaining / totalSeconds) * 100 : 100;
+      progress.style.width = pct + '%';
+    }
+
+    function setInputsDisabled(disabled) {
+      inputH.disabled = disabled;
+      inputM.disabled = disabled;
+      inputS.disabled = disabled;
+    }
+
+    function setStatus(msg, cls) {
+      status.textContent = msg;
+      display.className  = 'timer-display ' + (cls || '');
+    }
+
+    /* ── Timer tick ────────────────────────────────────── */
+    function tick() {
+      if (remaining <= 0) {
+        clearInterval(timerId);
+        timerId = null;
+        running = false;
+        remaining = 0;
+        updateDisplay();
+        setStatus('Time\'s Up! 🎉', 'done');
+        btnStart.disabled = true;
+        btnPause.disabled = true;
+        setInputsDisabled(false);
+        showAlert();
+        return;
+      }
+      remaining--;
+      updateDisplay();
+    }
+
+    /* ── Alert sound — plays frog.mp3 exactly 3 times ─── */
+    function playAlertSound() {
+      const src   = '/static/sounds/frog.mp3';
+      let   plays = 0;
+
+      function playOnce() {
+        plays++;
+        const audio = new Audio(src);
+        audio.volume = 1.0;
+        audio.play().catch(err => {
+          // Autoplay may be blocked if user hasn't interacted with page yet;
+          // the overlay click (Dismiss) will have already unlocked audio by then.
+          console.warn('Audio play blocked:', err);
+        });
+        if (plays < 3) {
+          // Wait for this play to finish, then play again
+          audio.addEventListener('ended', playOnce, { once: true });
+        }
+      }
+
+      playOnce();
+    }
+
+    /* ── Alert ─────────────────────────────────────────── */
+    function showAlert() {
+      overlay.classList.add('show');
+      playAlertSound();
+      // Browser notification (if permitted)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Countdown Timer', { body: 'Time\'s up!', icon: '' });
+      }
+    }
+
+    alertClose.addEventListener('click', () => {
+      overlay.classList.remove('show');
+    });
+
+    /* ── Start ─────────────────────────────────────────── */
+    btnStart.addEventListener('click', () => {
+      if (!running) {
+        if (remaining === 0) {
+          // Fresh start — read inputs
+          remaining    = toSeconds(inputH.value, inputM.value, inputS.value);
+          totalSeconds = remaining;
+        }
+
+        if (remaining <= 0) {
+          setStatus('Please set a time greater than 0.', '');
+          return;
+        }
+
+        running = true;
+        setInputsDisabled(true);
+        btnStart.disabled = true;
+        btnPause.disabled = false;
+        setStatus('Running…', 'running');
+
+        updateDisplay();
+        timerId = setInterval(tick, 1000);
+
+        // Request notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+    });
+
+    /* ── Pause / Resume ────────────────────────────────── */
+    btnPause.addEventListener('click', () => {
+      if (running) {
+        // Pause
+        clearInterval(timerId);
+        timerId = null;
+        running = false;
+        btnStart.disabled = false;
+        btnStart.textContent = '▶ Resume';
+        btnPause.disabled = true;
+        setStatus('Paused', 'paused');
+      }
+    });
+
+    /* ── Reset ─────────────────────────────────────────── */
+    btnReset.addEventListener('click', () => {
+      clearInterval(timerId);
+      timerId  = null;
+      running  = false;
+      remaining    = 0;
+      totalSeconds = 0;
+
+      inputH.value = 0;
+      inputM.value = 5;
+      inputS.value = 0;
+
+      progress.style.width   = '100%';
+      display.textContent    = '00:05:00';
+      display.className      = 'timer-display';
+      status.textContent     = 'Ready';
+
+      btnStart.disabled      = false;
+      btnStart.textContent   = '▶ Start';
+      btnPause.disabled      = true;
+
+      setInputsDisabled(false);
+    });
+
+    /* ── Preset buttons ────────────────────────────────── */
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (running) return;          // ignore presets while running
+
+        inputH.value = btn.dataset.h;
+        inputM.value = btn.dataset.m;
+        inputS.value = btn.dataset.s;
+
+        // Reset display to preset value
+        remaining    = 0;
+        totalSeconds = 0;
+        const secs   = toSeconds(btn.dataset.h, btn.dataset.m, btn.dataset.s);
+        display.textContent  = formatTime(secs);
+        display.className    = 'timer-display';
+        progress.style.width = '100%';
+        status.textContent   = 'Ready';
+        btnStart.disabled    = false;
+        btnStart.textContent = '▶ Start';
+        btnPause.disabled    = true;
+      });
+    });
+
+    /* ── Sync display as user types ────────────────────── */
+    [inputH, inputM, inputS].forEach(inp => {
+      inp.addEventListener('input', () => {
+        if (!running && remaining === 0) {
+          const secs = toSeconds(inputH.value, inputM.value, inputS.value);
+          display.textContent  = formatTime(secs);
+          progress.style.width = '100%';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
