@@ -3,25 +3,27 @@
    ========================================================= */
 
 /* ---------- CSS Reset & Custom Properties ---------- */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 :root {
-  --clr-bg:        #0f0f0f;
-  --clr-surface:   #1a1a2e;
-  --clr-accent:    #e94560;
-  --clr-accent2:   #0f3460;
-  --clr-text:      #e0e0e0;
-  --clr-muted:     #a0a0b0;
-  --clr-white:     #ffffff;
+  --clr-bg: #0f0f0f;
+  --clr-surface: #1a1a2e;
+  --clr-accent: #e94560;
+  --clr-accent2: #0f3460;
+  --clr-text: #e0e0e0;
+  --clr-muted: #a0a0b0;
+  --clr-white: #ffffff;
 
-  --font-sans:     'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  --radius:        8px;
-  --transition:    0.3s ease;
-  --max-width:     1100px;
+  --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --radius: 8px;
+  --transition: 0.3s ease;
+  --max-width: 1100px;
 }
 
 html {
@@ -109,7 +111,7 @@ ul {
 .btn-secondary {
   background: var(--clr-accent2);
   color: var(--clr-white);
-  border-color: rgba(255,255,255,0.18);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .btn-outline {
@@ -396,7 +398,7 @@ header {
   color: var(--clr-white);
 }
 
-.project-card > p {
+.project-card>p {
   color: var(--clr-muted);
   font-size: 0.95rem;
   line-height: 1.6;
@@ -630,9 +632,17 @@ header {
   transition: color 0.2s ease;
 }
 
-.form-status--error   { color: #e94560; }
-.form-status--success { color: #4caf50; }
-.form-status--info    { color: #a0a0b0; }
+.form-status--error {
+  color: #e94560;
+}
+
+.form-status--success {
+  color: #4caf50;
+}
+
+.form-status--info {
+  color: #a0a0b0;
+}
 
 /* ---------- Honeypot (hidden from real users, visible to bots) ---------- */
 .hp-field {
@@ -662,7 +672,7 @@ header {
 }
 
 .success-box {
-  background: linear-gradient(135deg, rgba(15,52,96,0.7) 0%, rgba(26,26,46,0.9) 100%);
+  background: linear-gradient(135deg, rgba(15, 52, 96, 0.7) 0%, rgba(26, 26, 46, 0.9) 100%);
   border: 1px solid rgba(233, 69, 96, 0.35);
   border-radius: 12px;
   padding: 36px 28px;
@@ -703,11 +713,15 @@ header {
 }
 
 @keyframes stroke-circle {
-  to { stroke-dashoffset: 0; }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 @keyframes stroke-tick {
-  to { stroke-dashoffset: 0; }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .success-title {
@@ -802,7 +816,9 @@ footer p {
 }
 
 @media (max-width: 560px) {
-  .logo { font-size: 1rem; }
+  .logo {
+    font-size: 1rem;
+  }
 
   .nav-links {
     gap: 10px;
@@ -821,4 +837,22 @@ footer p {
     flex-direction: column;
     align-items: center;
   }
+}
+
+/* ── Download note (SmartScreen hint below .exe button) ────────────────────── */
+.download-note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: #a0a0b0;
+  line-height: 1.4;
+}
+
+.download-note strong {
+  color: #e0e0e0;
+}
+
+.download-note em {
+  font-style: normal;
+  color: #e94560;
+  font-weight: 600;
 }
