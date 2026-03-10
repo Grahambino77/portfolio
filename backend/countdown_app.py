@@ -16,6 +16,7 @@ Features:
 """
 
 import os
+import sys
 import time
 import threading
 import ctypes
@@ -23,11 +24,41 @@ import tkinter as tk
 from tkinter import ttk, font as tkfont
 
 # ---------------------------------------------------------------------------
-# Path helpers
+# Path helpers  (defined first so resource_path can use ROOT_DIR as fallback)
 # ---------------------------------------------------------------------------
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR    = os.path.dirname(BACKEND_DIR)
-SOUND_FILE  = os.path.join(ROOT_DIR, "static", "sounds", "frog.mp3")
+
+# ---------------------------------------------------------------------------
+# PyInstaller-safe resource path helper
+# ---------------------------------------------------------------------------
+def resource_path(relative_path: str) -> str:
+    """
+    Return the absolute path to a bundled resource.
+
+    - When running as a PyInstaller .exe, PyInstaller extracts files to
+      sys._MEIPASS at runtime, so we use that as the base.
+    - When running as a normal Python script we fall back to ROOT_DIR
+      (the project root), so relative paths like 'static/sounds/frog.mp3'
+      resolve correctly regardless of which directory Python is invoked from.
+
+    Bundle the sound file with:
+        pyinstaller --add-data "static/sounds/frog.mp3;static/sounds" backend/countdown_app.py
+    """
+    try:
+        # PyInstaller sets sys._MEIPASS when running as a frozen bundle
+        base_path = sys._MEIPASS          # AttributeError if not bundled
+    except AttributeError:
+        # Normal Python script — use the project root
+        base_path = ROOT_DIR
+
+    return os.path.join(base_path, relative_path)
+
+# IMPORTANT: Use resource_path so the .exe can find frog.mp3
+# Path is relative to ROOT_DIR (script) or sys._MEIPASS (bundle).
+SOUND_FILE = resource_path(os.path.join("static", "sounds", "frog.mp3"))
+print("Sound file path:", SOUND_FILE)
+
 
 # ---------------------------------------------------------------------------
 # Sound playback (Windows built-in — no extra packages needed)
