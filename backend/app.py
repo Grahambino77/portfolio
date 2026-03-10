@@ -55,9 +55,10 @@ limiter = Limiter(
 # ---------------------------------------------------------------------------
 # Email configuration (loaded from .env)
 # ---------------------------------------------------------------------------
-GMAIL_USER    = os.environ.get("GMAIL_USER", "")          # your Gmail address
-GMAIL_PASS    = os.environ.get("GMAIL_APP_PASS", "")      # Gmail App Password (16-char)
-NOTIFY_EMAIL  = os.environ.get("NOTIFY_EMAIL", GMAIL_USER) # where to forward contact msgs
+GMAIL_USER    = os.environ.get("GMAIL_USER", "").strip()
+# Strip spaces so the password works whether entered as "abcd efgh ijkl mnop" or "abcdefghijklmnop"
+GMAIL_PASS    = os.environ.get("GMAIL_APP_PASS", "").replace(" ", "").strip()
+NOTIFY_EMAIL  = os.environ.get("NOTIFY_EMAIL", GMAIL_USER).strip()
 
 EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
