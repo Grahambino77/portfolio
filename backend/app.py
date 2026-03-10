@@ -49,6 +49,7 @@ limiter = Limiter(
     app=app,
     default_limits=[],                    # no global limit; set per-route
     storage_uri="memory://",
+    swallow_errors=True,                  # prevent storage errors from causing 500s
 )
 
 # ---------------------------------------------------------------------------
@@ -217,22 +218,34 @@ def contact():
         return jsonify({"message": "Thanks for reaching out! I'll get back to you soon."}), 200
 
     except EnvironmentError as e:
-        # Email not configured — log and fall back gracefully
-        logger.warning("Email not configured: %s", e)
-        logger.info("[FALLBACK] Contact from %s <%s>: %s", name, email, message)
+        # Email env vars not set — log the message so it isn't lost, return success to user
+        logger.warning("Email not configured (%s) — logging contact for manual follow-up.", e)
+        logger.info("[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message)
         return jsonify({"message": "Message received! I'll be in touch soon."}), 200
 
     except smtplib.SMTPAuthenticationError:
-        logger.error("Gmail authentication failed — check GMAIL_USER and GMAIL_APP_PASS in .env")
-        return jsonify({"error": "Server email configuration error. Please try again later."}), 500
+        # Wrong Gmail App Password or 2FA not enabled — log & fall back gracefully
+        logger.error(
+            "Gmail auth failed — verify GMAIL_USER and GMAIL_APP_PASS in Render env vars. "
+            "[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message
+        )
+        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
 
     except smtplib.SMTPException as e:
-        logger.error("SMTP error: %s", e)
-        return jsonify({"error": "Failed to send message. Please try again later."}), 500
+        # Any other SMTP failure — log & fall back gracefully
+        logger.error(
+            "SMTP error (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+            e, name, email, message
+        )
+        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
 
     except Exception as e:
-        logger.error("Unexpected error in /contact: %s", e)
-        return jsonify({"error": "An unexpected error occurred. Please try again."}), 500
+        # Unexpected error — log everything and still return success to the user
+        logger.error(
+            "Unexpected error in /contact (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+            e, name, email, message
+        )
+        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +265,13 @@ def rate_limit_handler(e):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "email_configured": bool(GMAIL_USER and GMAIL_PASS)}), 200
+    return jsonify({
+        "status": "ok",
+        "email_configured": bool(GMAIL_USER and GMAIL_PASS),
+        "gmail_user_set": bool(GMAIL_USER),
+        "gmail_pass_set": bool(GMAIL_PASS),
+        "notify_email_set": bool(NOTIFY_EMAIL),
+    }), 200
 
 
 # ---------------------------------------------------------------------------
