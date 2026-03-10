@@ -3,6 +3,7 @@ flask>=3.0.0
 flask-limiter>=3.5.0
 python-dotenv>=1.0.0
 gunicorn
+resend>=2.0.0
 
 # ── Automation testing ────────────────────────────────────────────────────────
 playwright>=1.42.0

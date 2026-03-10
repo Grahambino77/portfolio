@@ -9,13 +9,11 @@ Required packages:
 
 import os
 import re
-import smtplib
 import logging
 import threading
-from email.mime.multipart import MIMEMultipart
-from email.mime.text      import MIMEText
-from datetime             import datetime
+from datetime import datetime
 
+import resend
 from flask          import Flask, request, jsonify, send_from_directory
 from flask_limiter  import Limiter
 from flask_limiter.util import get_remote_address
@@ -54,12 +52,17 @@ limiter = Limiter(
 )
 
 # ---------------------------------------------------------------------------
-# Email configuration (loaded from .env)
+# Email configuration — uses Resend HTTP API (works on Render free tier;
+# raw SMTP/port 587 is blocked by Render's network).
 # ---------------------------------------------------------------------------
-GMAIL_USER    = os.environ.get("GMAIL_USER", "").strip()
-# Strip spaces so the password works whether entered as "abcd efgh ijkl mnop" or "abcdefghijklmnop"
-GMAIL_PASS    = os.environ.get("GMAIL_APP_PASS", "").replace(" ", "").strip()
-NOTIFY_EMAIL  = os.environ.get("NOTIFY_EMAIL", GMAIL_USER).strip()
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+NOTIFY_EMAIL   = os.environ.get("NOTIFY_EMAIL", "").strip()   # your Gmail address
+# FROM address: use a verified Resend domain address, or leave as the Resend
+# sandbox default.  Set RESEND_FROM in Render env vars to override.
+RESEND_FROM    = os.environ.get(
+    "RESEND_FROM",
+    "Portfolio Contact <onboarding@resend.dev>",
+).strip()
 
 EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -67,12 +70,25 @@ EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 # Helpers
 # ---------------------------------------------------------------------------
 
-def send_gmail(sender_name: str, sender_email: str, message: str) -> None:
-    """Send a contact notification email via Gmail SMTP (TLS on port 587)."""
-    if not GMAIL_USER or not GMAIL_PASS:
-        raise EnvironmentError("GMAIL_USER or GMAIL_APP_PASS not configured in .env")
+def send_contact_email(sender_name: str, sender_email: str, message: str) -> None:
+    """
+    Send a contact notification via the Resend HTTP API.
 
-    subject = f"Portfolio Contact: {sender_name}"
+    Resend uses HTTPS (port 443) — never blocked by Render's network.
+    SMTP (port 587) IS blocked on Render's free tier, which is why we
+    switched from smtplib.
+
+    Required env vars (set in Render dashboard → Environment):
+        RESEND_API_KEY  — from https://resend.com/api-keys
+        NOTIFY_EMAIL    — where to deliver contact messages (your Gmail)
+        RESEND_FROM     — optional; verified sender address (default: onboarding@resend.dev)
+    """
+    if not RESEND_API_KEY:
+        raise ValueError("RESEND_API_KEY is not set in environment variables.")
+    if not NOTIFY_EMAIL:
+        raise ValueError("NOTIFY_EMAIL is not set in environment variables.")
+
+    resend.api_key = RESEND_API_KEY
 
     html_body = f"""
     <html><body style="font-family:Arial,sans-serif;color:#333;">
@@ -98,19 +114,13 @@ def send_gmail(sender_name: str, sender_email: str, message: str) -> None:
     </body></html>
     """
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"Portfolio Contact Form <{GMAIL_USER}>"
-    msg["To"]      = NOTIFY_EMAIL
-    msg["Reply-To"] = f"{sender_name} <{sender_email}>"
-
-    msg.attach(MIMEText(html_body, "html"))
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.ehlo()
-        server.starttls()
-        server.login(GMAIL_USER, GMAIL_PASS)
-        server.sendmail(GMAIL_USER, NOTIFY_EMAIL, msg.as_string())
+    resend.Emails.send({
+        "from":     RESEND_FROM,
+        "to":       [NOTIFY_EMAIL],
+        "reply_to": f"{sender_name} <{sender_email}>",
+        "subject":  f"Portfolio Contact: {sender_name}",
+        "html":     html_body,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -220,21 +230,17 @@ def contact():
     # the email in the background without racing gunicorn's timeout.
     def _email_worker():
         try:
-            send_gmail(name, email, message)
-            logger.info("Email sent. From: %s <%s>", name, email)
-        except EnvironmentError as exc:
+            send_contact_email(name, email, message)
+            logger.info("Resend email delivered. From: %s <%s>", name, email)
+        except ValueError as exc:
+            # Missing env vars — log contact so message isn't lost
             logger.warning(
-                "Email not configured (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+                "Resend not configured (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
                 exc, name, email, message,
-            )
-        except smtplib.SMTPAuthenticationError:
-            logger.error(
-                "Gmail auth failed — check GMAIL_USER / GMAIL_APP_PASS in Render env vars. "
-                "[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message,
             )
         except Exception as exc:
             logger.error(
-                "Email error (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+                "Resend error (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
                 exc, name, email, message,
             )
 
@@ -261,10 +267,9 @@ def rate_limit_handler(e):
 def health():
     return jsonify({
         "status": "ok",
-        "email_configured": bool(GMAIL_USER and GMAIL_PASS),
-        "gmail_user_set": bool(GMAIL_USER),
-        "gmail_pass_set": bool(GMAIL_PASS),
+        "resend_api_key_set": bool(RESEND_API_KEY),
         "notify_email_set": bool(NOTIFY_EMAIL),
+        "resend_from": RESEND_FROM,
     }), 200
 
 
