@@ -39,5 +39,14 @@ Thumbs.db
 *.swp
 *.swo
 
+# ── PyInstaller ─────────────────────────────────────────────
+*.spec
+dist/
+build/
+
+# ── pytest cache ────────────────────────────────────────────
+.pytest_cache/
+tests/__pycache__/
+
 # ── Node (if you add a build step later) ───────────────────
 node_modules/
