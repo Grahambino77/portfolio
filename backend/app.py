@@ -131,51 +131,39 @@ def countdown():
 @app.route("/launch-desktop")
 def launch_desktop():
     """
-    Launch the Python/Tkinter desktop countdown app as a detached subprocess.
-    Returns a simple confirmation page — does NOT block the Flask server.
+    Kept for backwards compatibility — now redirects to the exe download page.
+    (The subprocess approach only works on the local dev machine, not on Render.)
     """
-    import subprocess, sys
-    script = os.path.join(ROOT_DIR, "backend", "countdown_app.py")
+    from flask import redirect
+    return redirect("/download/countdown-timer")
 
-    try:
-        # DETACHED_PROCESS + CREATE_NEW_CONSOLE keeps it independent on Windows
-        DETACHED = 0x00000008
-        subprocess.Popen(
-            [sys.executable, script],
-            creationflags=DETACHED,
-            close_fds=True,
+
+@app.route("/download/countdown-timer")
+def download_countdown_timer():
+    """
+    Serve CountdownTimer.exe as a direct file download.
+
+    The .exe lives at static/files/CountdownTimer.exe and is tracked in git
+    so it deploys to Render automatically.  Visitors download it and run it
+    locally on Windows — no Python install required.
+    """
+    files_dir = os.path.join(ROOT_DIR, "static", "files")
+    filename  = "CountdownTimer.exe"
+
+    if not os.path.isfile(os.path.join(files_dir, filename)):
+        logger.error("CountdownTimer.exe not found at %s", files_dir)
+        return (
+            "<h2 style='font-family:sans-serif;color:#e94560;text-align:center;"
+            "margin-top:20vh'>⚠️ File not available — please check back soon.</h2>",
+            404,
         )
-        launched = True
-    except Exception as e:
-        logger.error("Failed to launch desktop app: %s", e)
-        launched = False
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Desktop App {'Launched' if launched else 'Error'}</title>
-  <style>
-    body{{font-family:'Segoe UI',sans-serif;background:#0f0f0f;color:#e0e0e0;
-         display:flex;align-items:center;justify-content:center;min-height:100vh;
-         flex-direction:column;gap:16px;text-align:center;padding:20px;}}
-    .icon{{font-size:3rem;}}
-    h2{{color:{'#4caf50' if launched else '#e94560'};font-size:1.6rem;}}
-    p{{color:#a0a0b0;max-width:380px;}}
-    a{{color:#e94560;text-decoration:none;font-weight:600;}}
-    a:hover{{opacity:.8;}}
-  </style>
-</head>
-<body>
-  <div class="icon">{'🖥️' if launched else '❌'}</div>
-  <h2>{'Desktop App Launched!' if launched else 'Launch Failed'}</h2>
-  <p>{'The countdown_app.py Tkinter window should now be open on your desktop.' if launched
-      else 'Could not start countdown_app.py. Make sure Python is installed and the file exists.'}</p>
-  <a href="/">← Back to Portfolio</a>
-</body>
-</html>"""
-    return html, 200 if launched else 500
+    return send_from_directory(
+        files_dir,
+        filename,
+        as_attachment=True,
+        download_name="CountdownTimer.exe",
+    )
 
 
 # ---------------------------------------------------------------------------
