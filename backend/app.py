@@ -11,6 +11,7 @@ import os
 import re
 import smtplib
 import logging
+import threading
 from email.mime.multipart import MIMEMultipart
 from email.mime.text      import MIMEText
 from datetime             import datetime
@@ -212,41 +213,33 @@ def contact():
     if len(message) > 5000:
         return jsonify({"error": "Message is too long (max 5000 characters)."}), 400
 
-    # ── Send email ────────────────────────────────────────────────────────────
-    try:
-        send_gmail(name, email, message)
-        logger.info("Contact email sent. From: %s <%s>", name, email)
-        return jsonify({"message": "Thanks for reaching out! I'll get back to you soon."}), 200
+    # ── Send email in a background thread ────────────────────────────────────
+    # Sending SMTP email can take 10-30 s on some networks.  Gunicorn kills the
+    # worker after 30 s, which returns a bare 500 *before* any Flask error handler
+    # runs.  Offloading to a daemon thread lets us return 200 instantly and send
+    # the email in the background without racing gunicorn's timeout.
+    def _email_worker():
+        try:
+            send_gmail(name, email, message)
+            logger.info("Email sent. From: %s <%s>", name, email)
+        except EnvironmentError as exc:
+            logger.warning(
+                "Email not configured (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+                exc, name, email, message,
+            )
+        except smtplib.SMTPAuthenticationError:
+            logger.error(
+                "Gmail auth failed — check GMAIL_USER / GMAIL_APP_PASS in Render env vars. "
+                "[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message,
+            )
+        except Exception as exc:
+            logger.error(
+                "Email error (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
+                exc, name, email, message,
+            )
 
-    except EnvironmentError as e:
-        # Email env vars not set — log the message so it isn't lost, return success to user
-        logger.warning("Email not configured (%s) — logging contact for manual follow-up.", e)
-        logger.info("[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message)
-        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
-
-    except smtplib.SMTPAuthenticationError:
-        # Wrong Gmail App Password or 2FA not enabled — log & fall back gracefully
-        logger.error(
-            "Gmail auth failed — verify GMAIL_USER and GMAIL_APP_PASS in Render env vars. "
-            "[CONTACT] Name: %s | Email: %s | Message: %s", name, email, message
-        )
-        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
-
-    except smtplib.SMTPException as e:
-        # Any other SMTP failure — log & fall back gracefully
-        logger.error(
-            "SMTP error (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
-            e, name, email, message
-        )
-        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
-
-    except Exception as e:
-        # Unexpected error — log everything and still return success to the user
-        logger.error(
-            "Unexpected error in /contact (%s). [CONTACT] Name: %s | Email: %s | Message: %s",
-            e, name, email, message
-        )
-        return jsonify({"message": "Message received! I'll be in touch soon."}), 200
+    threading.Thread(target=_email_worker, daemon=True).start()
+    return jsonify({"message": "Thanks for reaching out! I'll get back to you soon."}), 200
 
 
 # ---------------------------------------------------------------------------
