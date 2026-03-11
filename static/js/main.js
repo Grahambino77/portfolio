@@ -5,18 +5,50 @@
 'use strict';
 
 /* ----------------------------------------------------------
+   0. Mobile hamburger menu toggle
+---------------------------------------------------------- */
+const navToggle = document.getElementById('navToggle');
+const navMenu = document.getElementById('navLinks');   // the <ul> element
+
+if (navToggle && navMenu) {
+  navToggle.addEventListener('click', () => {
+    const isOpen = navMenu.classList.toggle('open');
+    navToggle.classList.toggle('open', isOpen);
+    navToggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  // Close the menu whenever a nav link is clicked
+  navMenu.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      navMenu.classList.remove('open');
+      navToggle.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // Close the menu if the user taps outside the header
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('header')) {
+      navMenu.classList.remove('open');
+      navToggle.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+/* ----------------------------------------------------------
    1. Active nav-link highlighting on scroll
 ---------------------------------------------------------- */
-const sections    = document.querySelectorAll('section[id]');
-const navLinks    = document.querySelectorAll('.nav-links a');
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
 
 function highlightNav() {
   let scrollY = window.scrollY;
 
   sections.forEach(section => {
-    const sectionTop    = section.offsetTop - 80;
+    const sectionTop = section.offsetTop - 80;
     const sectionHeight = section.offsetHeight;
-    const sectionId     = section.getAttribute('id');
+    const sectionId = section.getAttribute('id');
 
     if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
       navLinks.forEach(link => {
@@ -61,8 +93,8 @@ revealElements.forEach(el => {
       Sends a POST request to the Flask backend at /contact.
 ---------------------------------------------------------- */
 const contactForm = document.getElementById('contactForm');
-const formStatus  = document.getElementById('formStatus');
-const submitBtn   = contactForm ? contactForm.querySelector('button[type="submit"]') : null;
+const formStatus = document.getElementById('formStatus');
+const submitBtn = contactForm ? contactForm.querySelector('button[type="submit"]') : null;
 
 /** Simple email format validator */
 function isValidEmail(email) {
@@ -73,7 +105,7 @@ function isValidEmail(email) {
 function setStatus(msg, type = 'info') {
   if (!formStatus) return;
   formStatus.textContent = msg;
-  formStatus.className   = 'form-status form-status--' + type;
+  formStatus.className = 'form-status form-status--' + type;
 }
 
 /**
@@ -86,7 +118,7 @@ function showSuccessAnimation() {
   if (old) old.remove();
 
   const overlay = document.createElement('div');
-  overlay.id        = 'successOverlay';
+  overlay.id = 'successOverlay';
   overlay.className = 'success-overlay';
   overlay.innerHTML = `
     <div class="success-box">
@@ -126,9 +158,9 @@ if (contactForm) {
   contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const name     = document.getElementById('name').value.trim();
-    const email    = document.getElementById('email').value.trim();
-    const message  = document.getElementById('message').value.trim();
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const message = document.getElementById('message').value.trim();
     // Honeypot — must stay empty; bots fill it, real users don't see it
     const honeypot = document.getElementById('honeypot')?.value || '';
 
@@ -144,16 +176,16 @@ if (contactForm) {
 
     // ── Disable submit button & show loading state ──────────
     if (submitBtn) {
-      submitBtn.disabled    = true;
+      submitBtn.disabled = true;
       submitBtn.textContent = 'Sending…';
     }
     setStatus('', 'info');
 
     try {
       const response = await fetch('/contact', {
-        method : 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ name, email, message, honeypot }),
+        body: JSON.stringify({ name, email, message, honeypot }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -171,7 +203,7 @@ if (contactForm) {
     } finally {
       // Re-enable submit button
       if (submitBtn) {
-        submitBtn.disabled    = false;
+        submitBtn.disabled = false;
         submitBtn.textContent = 'Send Message';
       }
     }
@@ -191,7 +223,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     if (target) {
       e.preventDefault();
       const offset = 70;
-      const top    = target.getBoundingClientRect().top + window.scrollY - offset;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top, behavior: 'smooth' });
     }
   });
@@ -201,9 +233,9 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
    5. Scroll-to-top button (injected dynamically)
 ---------------------------------------------------------- */
 const scrollBtn = document.createElement('button');
-scrollBtn.id        = 'scrollTopBtn';
+scrollBtn.id = 'scrollTopBtn';
 scrollBtn.innerHTML = '&#8679;';
-scrollBtn.title     = 'Back to top';
+scrollBtn.title = 'Back to top';
 scrollBtn.style.cssText = `
   position: fixed;
   bottom: 32px;
