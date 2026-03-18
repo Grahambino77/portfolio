@@ -4,8 +4,8 @@ test_projects.py — Tests for the Custom Project Highlights section.
 Covers:
   - Correct number of project cards (3)
   - Countdown Timer card content, tags, and buttons
-  - 'Launch Web App Version' button is visible, points to the correct
-    static path (/static/countdown/index.html), and opens in a new tab
+  - 'Launch Web App Version' button is visible, points to /countdown,
+    opens in a new tab, and the countdown page loads correctly
   - Flask /countdown route returns HTTP 200
   - Coming-soon placeholder cards (Spring 2026 & Summer 2026) are present
   - Both coming-soon labels are visible
@@ -67,19 +67,42 @@ class TestCountdownTimerCard:
         assert btn.is_visible()
 
     def test_launch_web_app_href(self, home_page):
-        """'Launch Web App Version' button href should point to the countdown page.
-
-        index.html links directly to /static/countdown/index.html (the static
-        asset path).  The Flask /countdown route serves the same page but the
-        anchor href uses the static path.
-        """
+        """'Launch Web App Version' button href should point to the Flask /countdown route."""
         btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
-        assert btn.get_attribute("href") == "/static/countdown/index.html"
+        assert btn.get_attribute("href") == "/countdown"
 
     def test_launch_web_app_opens_new_tab(self, home_page):
-        """'Launch Web App Version' button should open in a new tab."""
+        """'Launch Web App Version' button should open in a new tab (target=_blank)."""
         btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
         assert btn.get_attribute("target") == "_blank"
+
+    def test_launch_web_app_button_opens_countdown_page(self, home_page):
+        """Clicking 'Launch Web App Version' should open the Countdown Timer in a new tab.
+
+        Captures the new tab triggered by target=_blank, waits for it to load,
+        then verifies the correct page title and the main timer element are present.
+        """
+        btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
+
+        # Capture the new page that opens when the link is clicked
+        with home_page.context.expect_page() as new_page_info:
+            btn.click()
+
+        new_tab = new_page_info.value
+        new_tab.wait_for_load_state("load")
+
+        # Verify the correct page loaded
+        assert "Countdown Timer" in new_tab.title(), (
+            f"Expected 'Countdown Timer' in new tab title, got: '{new_tab.title()}'"
+        )
+        assert new_tab.locator("#timerDisplay").is_visible(), (
+            "Timer display (#timerDisplay) not visible in the new tab"
+        )
+        assert new_tab.url.rstrip("/").endswith("/countdown"), (
+            f"New tab URL should end with /countdown, got: '{new_tab.url}'"
+        )
+
+        new_tab.close()
 
     def test_countdown_web_app_route_responds(self, page):
         """GET /countdown should return HTTP 200."""
