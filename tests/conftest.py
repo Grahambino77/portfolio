@@ -16,8 +16,10 @@ Run a specific file:
 import os
 import sys
 import time
+import shutil
 import socket
 import subprocess
+from datetime import datetime
 import pytest
 from playwright.sync_api import sync_playwright
 
@@ -85,12 +87,25 @@ def flask_server():
 
 # ---------------------------------------------------------------------------
 # Session-scoped browser fixture
+# Respects the --headed / --slowmo flags passed on the pytest command line.
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
-def browser_instance(flask_server):
-    """Launch a single Chromium browser for the entire test session."""
+def browser_instance(flask_server, request):
+    """Launch a single Chromium browser for the entire test session.
+
+    Reads the --headed and --slowmo flags registered by pytest-playwright so
+    that passing them on the command line actually opens a visible browser.
+
+    Examples
+    --------
+    pytest tests/ -v --headed
+    pytest tests/test_nav_links.py -v --headed --slowmo 600
+    """
+    headed  = request.config.getoption("--headed",  default=False)
+    slowmo  = request.config.getoption("--slowmo",  default=0)
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=not headed, slow_mo=slowmo)
         yield browser
         browser.close()
 
@@ -123,3 +138,25 @@ def home_page(page):
 def countdown_page(page):
     page.goto(f"{BASE_URL}/countdown", wait_until="load")
     return page
+
+
+# ---------------------------------------------------------------------------
+# Report archiving — runs after every test session.
+# pytest.ini writes the latest report to reports/report.html (always current).
+# This hook also saves a timestamped copy so previous runs are never lost.
+#
+# After running tests you will find:
+#   reports/report.html                    ← always the latest run
+#   reports/report_2026-03-18_12-00-00.html ← permanent archive of that run
+# ---------------------------------------------------------------------------
+def pytest_sessionfinish(session, exitstatus):
+    """Archive the HTML report with a timestamp after every test session."""
+    reports_dir = os.path.join(ROOT_DIR, "reports")
+    latest      = os.path.join(reports_dir, "report.html")
+
+    if not os.path.isfile(latest):
+        return  # no report generated (e.g. collection error before any test ran)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    archive   = os.path.join(reports_dir, f"report_{timestamp}.html")
+    shutil.copy2(latest, archive)

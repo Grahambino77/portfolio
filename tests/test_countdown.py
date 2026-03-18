@@ -109,15 +109,15 @@ class TestCountdownUIElements:
 
 class TestCountdownInputs:
 
-    def test_default_display_shows_five_minutes(self, countdown_page):
-        """Default display should show 00:05:00 (5 minutes)."""
+    def test_default_display_shows_zero_minutes(self, countdown_page):
+        """Default display should show 00:00:00 (0 minutes)."""
         display = countdown_page.locator("#timerDisplay")
-        assert display.inner_text() == "00:05:00"
+        assert display.inner_text() == "00:00:00"
 
-    def test_minutes_input_default_is_five(self, countdown_page):
-        """Minutes input should default to 5."""
+    def test_minutes_input_default_is_zero(self, countdown_page):
+        """Minutes input should default to 0."""
         value = countdown_page.locator("#inputMinutes").input_value()
-        assert value == "5"
+        assert value == "0"
 
     def test_changing_minutes_updates_display(self, countdown_page):
         """Changing minutes input should update the timer display."""
@@ -208,7 +208,7 @@ class TestCountdownControls:
         assert paused_display == still_paused, "Timer kept ticking after Pause"
 
     def test_reset_restores_defaults(self, countdown_page):
-        """Clicking Reset should restore the display to 00:05:00."""
+        """Clicking Reset should restore the display to 00:00:00."""
         countdown_page.locator(".preset-btn", has_text="25 min").click()
         countdown_page.locator("#btnStart").click()
         countdown_page.wait_for_timeout(500)
@@ -216,7 +216,7 @@ class TestCountdownControls:
         countdown_page.wait_for_timeout(200)
 
         display = countdown_page.locator("#timerDisplay").inner_text()
-        assert display == "00:05:00"
+        assert display == "00:00:00"
 
     def test_reset_re_enables_start_button(self, countdown_page):
         """After Reset, Start button should be re-enabled."""

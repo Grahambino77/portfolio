@@ -152,8 +152,14 @@ class TestHealthEndpoint:
         assert response.status == 200
 
     def test_health_route_returns_json(self, page):
-        """GET /health should return valid JSON with a 'status' field."""
+        """GET /health should return valid JSON with expected configuration keys.
+
+        The /health endpoint returns:
+          { "status": "ok", "resend_api_key_set": bool,
+            "notify_email_set": bool, "resend_from": str }
+        """
         response = page.goto(f"{BASE_URL}/health")
         body = response.json()
         assert body.get("status") == "ok"
-        assert "email_configured" in body
+        assert "notify_email_set" in body
+        assert "resend_api_key_set" in body

@@ -44,9 +44,10 @@ Thumbs.db
 dist/
 build/
 
-# ── pytest cache ────────────────────────────────────────────
+# ── pytest cache & reports ──────────────────────────────────
 .pytest_cache/
 tests/__pycache__/
+reports/
 
 # ── Node (if you add a build step later) ───────────────────
 node_modules/

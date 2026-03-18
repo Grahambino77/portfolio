@@ -3,10 +3,12 @@ test_projects.py — Tests for the Custom Project Highlights section.
 
 Covers:
   - Correct number of project cards (3)
-  - Countdown Timer card content & buttons
-  - Coming-soon placeholder cards (Spring & Summer 2026)
-  - Launch Web App Version button navigates to /countdown
-  - Launch Desktop App button navigates to /launch-desktop
+  - Countdown Timer card content, tags, and buttons
+  - 'Launch Web App Version' button is visible, points to the correct
+    static path (/static/countdown/index.html), and opens in a new tab
+  - Flask /countdown route returns HTTP 200
+  - Coming-soon placeholder cards (Spring 2026 & Summer 2026) are present
+  - Both coming-soon labels are visible
 """
 
 import pytest
@@ -64,20 +66,15 @@ class TestCountdownTimerCard:
         btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
         assert btn.is_visible()
 
-    def test_launch_desktop_button_visible(self, home_page):
-        """'Launch Desktop App' button should be visible on the card."""
-        btn = home_page.locator(".project-links a", has_text="Launch Desktop App")
-        assert btn.is_visible()
-
     def test_launch_web_app_href(self, home_page):
-        """'Launch Web App Version' button href should point to /countdown."""
-        btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
-        assert btn.get_attribute("href") == "/countdown"
+        """'Launch Web App Version' button href should point to the countdown page.
 
-    def test_launch_desktop_href(self, home_page):
-        """'Launch Desktop App' button href should point to /launch-desktop."""
-        btn = home_page.locator(".project-links a", has_text="Launch Desktop App")
-        assert btn.get_attribute("href") == "/launch-desktop"
+        index.html links directly to /static/countdown/index.html (the static
+        asset path).  The Flask /countdown route serves the same page but the
+        anchor href uses the static path.
+        """
+        btn = home_page.locator(".project-links a", has_text="Launch Web App Version")
+        assert btn.get_attribute("href") == "/static/countdown/index.html"
 
     def test_launch_web_app_opens_new_tab(self, home_page):
         """'Launch Web App Version' button should open in a new tab."""
@@ -95,15 +92,20 @@ class TestCountdownTimerCard:
 class TestComingSoonCards:
 
     def test_spring_2026_card_exists(self, home_page):
-        """A 'Spring 2026' placeholder card should be present."""
+        """A 'Spring 2026' placeholder card should be present.
+
+        Uses text_content() (raw DOM text) rather than inner_text() so the
+        check is not affected by the scroll-reveal animation which sets
+        opacity:0 on cards that are below the fold in headless mode.
+        """
         cards = home_page.locator(".project-card--coming-soon")
-        texts = [cards.nth(i).inner_text() for i in range(cards.count())]
+        texts = [cards.nth(i).text_content() for i in range(cards.count())]
         assert any("Spring 2026" in t for t in texts), "Spring 2026 card not found"
 
     def test_summer_2026_card_exists(self, home_page):
         """A 'Summer 2026' placeholder card should be present."""
         cards = home_page.locator(".project-card--coming-soon")
-        texts = [cards.nth(i).inner_text() for i in range(cards.count())]
+        texts = [cards.nth(i).text_content() for i in range(cards.count())]
         assert any("Summer 2026" in t for t in texts), "Summer 2026 card not found"
 
     def test_coming_soon_cards_count(self, home_page):

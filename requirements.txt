@@ -9,3 +9,5 @@ resend>=2.0.0
 playwright>=1.42.0
 pytest>=8.0.0
 pytest-playwright>=0.4.4
+pytest-html>=4.0.0
+pytest-metadata>=2.0.0
