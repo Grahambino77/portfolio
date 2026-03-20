@@ -3,7 +3,6 @@
 A full-stack personal portfolio site built with **HTML/CSS/JavaScript** on the front end and **Python Flask** on the back end. Features a responsive dark-themed design, an animated contact form with Resend email integration, a Countdown Timer application (web + desktop), and a comprehensive Playwright automation test suite.
 
 🔗 **Live Portfolio Hosted on Render:** https://portfolio-0iuq.onrender.com 
-🔗 **GitHub:** https://github.com/Grahambino77/portfolio
 
 ---
 
