@@ -170,21 +170,29 @@ def download_resume():
 
     if onedrive_path.is_file():
         logger.info("Serving resume from OneDrive: %s", onedrive_path)
-        return send_from_directory(
+        response = send_from_directory(
             str(onedrive_path.parent),
             onedrive_path.name,
             as_attachment=True,
             download_name="AndrewGraham_Resume2026.docx",
         )
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     # Fallback — static file committed to the repo
     files_dir = os.path.join(ROOT_DIR, "static", "files")
     for fname in ("AndrewGraham_Resume2026.pdf", "AndrewGraham_Resume2026.docx"):
         if os.path.isfile(os.path.join(files_dir, fname)):
             logger.info("Serving resume from static fallback: %s", fname)
-            return send_from_directory(
+            response = send_from_directory(
                 files_dir, fname, as_attachment=True, download_name=fname
             )
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            return response
 
     logger.error("Resume file not found in OneDrive path or static/files/")
     return (
