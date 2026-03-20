@@ -183,7 +183,7 @@ def download_resume():
 
     # Fallback — static file committed to the repo
     files_dir = os.path.join(ROOT_DIR, "static", "files")
-    for fname in ("AndrewGraham_Resume2026.pdf", "AndrewGraham_Resume2026.docx"):
+    for fname in ("AndrewGraham_Resume2026.docx", "AndrewGraham_Resume2026.pdf"):
         if os.path.isfile(os.path.join(files_dir, fname)):
             logger.info("Serving resume from static fallback: %s", fname)
             response = send_from_directory(
