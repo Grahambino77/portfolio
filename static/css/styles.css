@@ -206,6 +206,15 @@ header {
   margin-bottom: 14px;
 }
 
+/* Desktop: separators visible, line breaks hidden */
+.tagline-sep {
+  display: inline;
+}
+
+.tagline-break {
+  display: none;
+}
+
 .tagline {
   font-size: 1.15rem;
   color: var(--clr-muted);
@@ -878,6 +887,15 @@ footer p {
 
 /* ── Mobile navigation breakpoint ──────────────────────────────────────────── */
 @media (max-width: 640px) {
+
+  /* Tagline: hide separators, show line breaks */
+  .tagline-sep {
+    display: none;
+  }
+
+  .tagline-break {
+    display: block;
+  }
 
   /* Show hamburger, hide the link list by default */
   .nav-toggle {
