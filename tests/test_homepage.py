@@ -13,6 +13,8 @@ Covers:
 
 import pytest
 
+from tests.conftest import home_page
+
 
 # ── Page load ────────────────────────────────────────────────────────────────
 
@@ -138,6 +140,19 @@ class TestSections:
         about_text = home_page.locator("#about .about-text")
         text = about_text.inner_text()
         assert "QA" in text or "quality" in text.lower()
+
+    def test_profile_image_is_not_broken(self, home_page):
+        """Profile image should load successfully (not broken)."""
+        img = home_page.get_by_role("img", name="Andrew Graham")
+
+        # Ensure the image exists
+        assert img.count() == 1, "Profile image with name 'Andrew Graham' not found"
+
+        # Check naturalWidth > 0 to confirm the image loaded
+        is_loaded = img.evaluate(
+        "(el) => el.complete && el.naturalWidth > 0")
+
+        assert is_loaded, "Profile image 'Andrew Graham' appears to be broken"
 
     def test_experience_timeline_has_items(self, home_page):
         """Experience timeline should have at least 1 entry."""

@@ -2,6 +2,16 @@
 conftest.py — Shared fixtures for the portfolio Playwright test suite.
 
 Automatically starts and stops the Flask server so tests are self-contained.
+Uses pytest-playwright's built-in fixture chain so that --tracing, --headed,
+and --slowmo flags all work correctly out of the box.
+
+How tracing works:
+  pytest-playwright's built-in `context` fixture (function-scoped) creates
+  every BrowserContext.  When --tracing=on is set it calls
+  context.tracing.start() on that object and saves the zip to --output.
+  Because our `page`, `home_page`, and `countdown_page` fixtures all
+  ultimately depend on pytest-playwright's `page` (which depends on
+  `context`), tracing is captured automatically for every test.
 
 Run all tests:
     pytest tests/ -v
@@ -21,7 +31,6 @@ import socket
 import subprocess
 from datetime import datetime
 import pytest
-from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -47,9 +56,10 @@ def _wait_for_server(host: str = "127.0.0.1", port: int = 5000, timeout: float =
 
 # ---------------------------------------------------------------------------
 # Session-scoped Flask server fixture
+# autouse=True  → starts automatically; no test needs to list it explicitly.
 # Starts the server once per test session; stops it when tests are done.
 # ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def flask_server():
     """Start the Flask dev server in a subprocess for the test session."""
     # Don't start a second server if one is already listening on port 5000
@@ -86,44 +96,25 @@ def flask_server():
 
 
 # ---------------------------------------------------------------------------
-# Session-scoped browser fixture
-# Respects the --headed / --slowmo flags passed on the pytest command line.
-# ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-def browser_instance(flask_server, request):
-    """Launch a single Chromium browser for the entire test session.
-
-    Reads the --headed and --slowmo flags registered by pytest-playwright so
-    that passing them on the command line actually opens a visible browser.
-
-    Examples
-    --------
-    pytest tests/ -v --headed
-    pytest tests/test_nav_links.py -v --headed --slowmo 600
-    """
-    headed  = request.config.getoption("--headed",  default=False)
-    slowmo  = request.config.getoption("--slowmo",  default=0)
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headed, slow_mo=slowmo)
-        yield browser
-        browser.close()
-
-
-# ---------------------------------------------------------------------------
-# Function-scoped page fixture — fresh page + context per test
+# Override browser_context_args to set a consistent viewport for all tests.
+#
+# pytest-playwright merges these kwargs when its own `context` fixture creates
+# each BrowserContext — so tracing is still started by that fixture on the
+# same object, exactly as designed.
 # ---------------------------------------------------------------------------
 @pytest.fixture
-def page(browser_instance):
-    context = browser_instance.new_context(viewport={"width": 1280, "height": 800})
-    pg = context.new_page()
-    yield pg
-    pg.close()
-    context.close()
+def browser_context_args(browser_context_args):
+    return {
+        **browser_context_args,
+        "viewport": {"width": 1280, "height": 800},
+    }
 
 
 # ---------------------------------------------------------------------------
-# Convenience fixture — navigates to the portfolio home page
+# Convenience fixture — navigates to the portfolio home page.
+#
+# `page` here is pytest-playwright's built-in function-scoped fixture.
+# It is created from the `context` fixture which handles tracing start/stop.
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def home_page(page):
@@ -132,7 +123,7 @@ def home_page(page):
 
 
 # ---------------------------------------------------------------------------
-# Convenience fixture — navigates to the countdown web app page
+# Convenience fixture — navigates to the countdown web app page.
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def countdown_page(page):
