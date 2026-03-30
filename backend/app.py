@@ -151,57 +151,6 @@ def launch_desktop():
     return redirect("/download/countdown-timer")
 
 
-@app.route("/download/resume")
-def download_resume():
-    """
-    Serve the most recent resume document.
-
-    Primary  — reads directly from the OneDrive path so the file served is
-               always the latest saved version (local dev / Windows machine).
-    Fallback — serves static/files/AndrewGraham_Resume2026.pdf when the
-               OneDrive path is unavailable (e.g. Render cloud deployment).
-    """
-    import pathlib
-
-    onedrive_path = pathlib.Path(
-        r"C:\Users\agrah\OneDrive\Documents\Andrew's Documents"
-        r"\AndrewGraham_Resume2026.docx"
-    )
-
-    if onedrive_path.is_file():
-        logger.info("Serving resume from OneDrive: %s", onedrive_path)
-        response = send_from_directory(
-            str(onedrive_path.parent),
-            onedrive_path.name,
-            as_attachment=True,
-            download_name="AndrewGraham_Resume2026.docx",
-        )
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    # Fallback — static file committed to the repo
-    files_dir = os.path.join(ROOT_DIR, "static", "files")
-    for fname in ("AndrewGraham_Resume2026.docx", "AndrewGraham_Resume2026.pdf"):
-        if os.path.isfile(os.path.join(files_dir, fname)):
-            logger.info("Serving resume from static fallback: %s", fname)
-            response = send_from_directory(
-                files_dir, fname, as_attachment=True, download_name=fname
-            )
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-            return response
-
-    logger.error("Resume file not found in OneDrive path or static/files/")
-    return (
-        "<h2 style='font-family:sans-serif;color:#e94560;text-align:center;"
-        "margin-top:20vh'>⚠️ Resume not available — please check back soon.</h2>",
-        404,
-    )
-
-
 @app.route("/download/countdown-timer")
 def download_countdown_timer():
     """
