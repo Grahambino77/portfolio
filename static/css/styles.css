@@ -346,6 +346,12 @@ header {
   color: var(--clr-muted);
 }
 
+.timeline-client {
+  font-size: 0.9rem;
+  color: var(--clr-muted);
+  margin-bottom: 10px;
+}
+
 .timeline-bullets {
   list-style: disc;
   padding-left: 18px;
