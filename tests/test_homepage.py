@@ -105,9 +105,9 @@ class TestHero:
         btn = home_page.locator(".hero-btns a", has_text="View Experience")
         assert btn.is_visible()
 
-    def test_hero_download_resume_button(self, home_page):
-        """'Download Resume' button should be visible."""
-        btn = home_page.locator(".hero-btns a", has_text="Download Resume")
+    def test_hero_view_my_resume_button(self, home_page):
+        """'View My Resume' button should be visible."""
+        btn = home_page.locator(".hero-btns a", has_text="View My Resume")
         assert btn.is_visible()
 
     def test_hero_email_link(self, home_page):
