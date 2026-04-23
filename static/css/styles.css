@@ -946,6 +946,257 @@ footer p {
   }
 }
 
+/* ---------- GitHub Projects Section ---------- */
+.gh-subsection {
+  margin-bottom: 8px;
+}
+
+.gh-subtitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--clr-accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-icon {
+  font-style: normal;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* --- Loading state --- */
+.gh-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--clr-muted);
+  font-size: 0.95rem;
+  padding: 16px 0;
+}
+
+.gh-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(233, 69, 96, 0.25);
+  border-top-color: var(--clr-accent);
+  border-radius: 50%;
+  animation: gh-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes gh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Error state --- */
+.gh-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--clr-muted);
+  font-size: 0.92rem;
+  background: rgba(233, 69, 96, 0.07);
+  border: 1px solid rgba(233, 69, 96, 0.2);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.gh-error-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* --- Repo grid --- */
+.gh-repos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.gh-repo-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.gh-repo-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(233, 69, 96, 0.35);
+  box-shadow: 0 10px 28px rgba(233, 69, 96, 0.12);
+}
+
+.gh-repo-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--clr-accent);
+  transition: opacity var(--transition);
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-repo-name:hover {
+  opacity: 0.8;
+}
+
+.gh-repo-name-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.gh-repo-desc {
+  color: var(--clr-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  flex: 1;
+}
+
+.gh-repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gh-repo-lang {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--clr-muted);
+  font-weight: 500;
+}
+
+.gh-lang-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--clr-accent);
+}
+
+/* Language colour map — feel free to expand */
+.gh-lang-dot[data-lang="Python"] {
+  background: #3572A5;
+}
+
+.gh-lang-dot[data-lang="JavaScript"] {
+  background: #f1e05a;
+}
+
+.gh-lang-dot[data-lang="TypeScript"] {
+  background: #2b7489;
+}
+
+.gh-lang-dot[data-lang="HTML"] {
+  background: #e34c26;
+}
+
+.gh-lang-dot[data-lang="CSS"] {
+  background: #563d7c;
+}
+
+.gh-lang-dot[data-lang="Shell"] {
+  background: #89e051;
+}
+
+.gh-lang-dot[data-lang="Dockerfile"] {
+  background: #384d54;
+}
+
+/* --- Commits list --- */
+.gh-commits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gh-commit-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  transition: border-color var(--transition);
+}
+
+.gh-commit-item:hover {
+  border-color: rgba(233, 69, 96, 0.3);
+}
+
+.gh-commit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--clr-accent);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.gh-commit-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.gh-commit-msg {
+  color: var(--clr-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  word-break: break-word;
+  margin-bottom: 4px;
+}
+
+.gh-commit-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--clr-muted);
+}
+
+.gh-commit-repo {
+  color: var(--clr-accent);
+  font-weight: 600;
+  transition: opacity var(--transition);
+}
+
+.gh-commit-repo:hover {
+  opacity: 0.75;
+}
+
+.gh-commit-sep {
+  opacity: 0.4;
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+  .gh-repos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Download note (SmartScreen hint below .exe button) ────────────────────── */
 .download-note {
   margin: 8px 0 0;

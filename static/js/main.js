@@ -211,8 +211,181 @@ if (contactForm) {
 }
 
 /* ----------------------------------------------------------
-   4. Smooth scroll — adds a small offset to account for
-      the sticky header height
+   4. GitHub API — Repositories & Recent Commits
+      Fetches public repos and recent push events for
+      Grahambino77 and renders them into the #github section.
+---------------------------------------------------------- */
+
+// ── Config ────────────────────────────────────────────────
+// Replace 'YOUR_TOKEN_HERE' with a GitHub Personal Access
+// Token (read-only / public repos scope) to avoid rate limits.
+const GITHUB_TOKEN = '***REMOVED***';
+const GITHUB_USERNAME = 'Grahambino77';
+
+/** Shared fetch wrapper — adds auth header when a token is set */
+async function ghFetch(url) {
+  const headers = { 'Accept': 'application/vnd.github+json' };
+  if (GITHUB_TOKEN && GITHUB_TOKEN !== '***REMOVED***') {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    throw new Error(`GitHub API error ${res.status}: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/** Convert an ISO date string into a relative-time label (e.g. "3 days ago") */
+function timeAgo(isoString) {
+  const now = Date.now();
+  const then = new Date(isoString).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+
+  const table = [
+    [60, 'just now', 1],
+    [3600, 'minute', 60],
+    [86400, 'hour', 3600],
+    [604800, 'day', 86400],
+    [2592000, 'week', 604800],
+    [31536000, 'month', 2592000],
+    [Infinity, 'year', 31536000],
+  ];
+
+  for (const [limit, label, divisor] of table) {
+    if (diffSec < limit) {
+      if (label === 'just now') return label;
+      const n = Math.floor(diffSec / divisor);
+      return `${n} ${label}${n !== 1 ? 's' : ''} ago`;
+    }
+  }
+  return 'a while ago';
+}
+
+/** Render an inline error message into a container element */
+function renderGhError(container, message) {
+  container.innerHTML = `
+    <div class="gh-error">
+      <span class="gh-error-icon">⚠️</span>
+      <span>${message}</span>
+    </div>`;
+}
+
+// ── Repositories ──────────────────────────────────────────
+async function loadGhRepos() {
+  const container = document.getElementById('ghRepos');
+  if (!container) return;
+
+  try {
+    const repos = await ghFetch(
+      `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`
+    );
+
+    // Filter: prefer repos with the "portfolio" topic; fall back to top-6 non-forks
+    const portfolio = repos.filter(r => Array.isArray(r.topics) && r.topics.includes('portfolio'));
+    const toShow = portfolio.length > 0
+      ? portfolio
+      : repos.filter(r => !r.fork).slice(0, 6);
+
+    if (toShow.length === 0) {
+      container.innerHTML = '<p class="gh-loading" style="padding:0">No repositories to display yet.</p>';
+      return;
+    }
+
+    container.innerHTML = toShow.map(repo => {
+      const lang = repo.language || null;
+      const desc = repo.description
+        ? `<p class="gh-repo-desc">${repo.description}</p>`
+        : '<p class="gh-repo-desc" style="font-style:italic;opacity:0.5">No description provided.</p>';
+
+      const langBadge = lang
+        ? `<span class="gh-repo-lang">
+             <span class="gh-lang-dot" data-lang="${lang}"></span>
+             ${lang}
+           </span>`
+        : '';
+
+      return `
+        <div class="gh-repo-card">
+          <a class="gh-repo-name" href="${repo.html_url}" target="_blank" rel="noopener noreferrer">
+            <span class="gh-repo-name-icon">📁</span>
+            ${repo.name}
+          </a>
+          ${desc}
+          <div class="gh-repo-meta">
+            ${langBadge}
+          </div>
+        </div>`;
+    }).join('');
+
+  } catch (err) {
+    console.error('GitHub repos fetch error:', err);
+    renderGhError(container, 'Unable to load repositories right now. Please try again later.');
+  }
+}
+
+// ── Recent Commits (PushEvents) ───────────────────────────
+async function loadGhCommits() {
+  const container = document.getElementById('ghCommits');
+  if (!container) return;
+
+  try {
+    const events = await ghFetch(
+      `https://api.github.com/users/${GITHUB_USERNAME}/events/public`
+    );
+
+    // Keep only PushEvents and extract up to 10 commits (newest first)
+    const commitRows = [];
+    for (const event of events) {
+      if (event.type !== 'PushEvent') continue;
+      const repoName = event.repo?.name ?? 'unknown/repo';
+      const repoUrl = `https://github.com/${repoName}`;
+      const pushedAt = event.created_at;
+
+      for (const commit of (event.payload?.commits ?? [])) {
+        commitRows.push({ message: commit.message, repoName, repoUrl, pushedAt });
+        if (commitRows.length >= 10) break;
+      }
+      if (commitRows.length >= 10) break;
+    }
+
+    if (commitRows.length === 0) {
+      container.innerHTML = '<p class="gh-loading" style="padding:0">No recent commit activity found.</p>';
+      return;
+    }
+
+    container.innerHTML = commitRows.map(({ message, repoName, repoUrl, pushedAt }) => {
+      // Truncate long commit messages gracefully
+      const shortMsg = message.length > 120 ? message.slice(0, 117) + '…' : message;
+      // Strip org prefix from repo name for display
+      const displayRepo = repoName.includes('/') ? repoName.split('/')[1] : repoName;
+
+      return `
+        <div class="gh-commit-item">
+          <span class="gh-commit-dot" aria-hidden="true"></span>
+          <div class="gh-commit-body">
+            <p class="gh-commit-msg">${shortMsg}</p>
+            <div class="gh-commit-meta">
+              <a class="gh-commit-repo" href="${repoUrl}" target="_blank" rel="noopener noreferrer">${displayRepo}</a>
+              <span class="gh-commit-sep">·</span>
+              <span>${timeAgo(pushedAt)}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+  } catch (err) {
+    console.error('GitHub commits fetch error:', err);
+    renderGhError(container, 'Unable to load recent commits right now. Please try again later.');
+  }
+}
+
+// ── Kick off both fetches in parallel ─────────────────────
+loadGhRepos();
+loadGhCommits();
+
+/* ----------------------------------------------------------
+   5. Smooth scroll — adds a small offset to account for
+       the sticky header height
 ---------------------------------------------------------- */
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', (e) => {
@@ -230,7 +403,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 });
 
 /* ----------------------------------------------------------
-   5. Scroll-to-top button (injected dynamically)
+   6. Scroll-to-top button (injected dynamically)
 ---------------------------------------------------------- */
 const scrollBtn = document.createElement('button');
 scrollBtn.id = 'scrollTopBtn';
@@ -266,7 +439,7 @@ scrollBtn.addEventListener('click', () => {
 });
 
 /* ----------------------------------------------------------
-   6. CSS class injected by JS for scroll-reveal transitions
+   7. CSS class injected by JS for scroll-reveal transitions
       (styles defined here so no extra CSS file changes needed)
 ---------------------------------------------------------- */
 const revealStyle = document.createElement('style');
